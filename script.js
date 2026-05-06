@@ -26,6 +26,8 @@ const SUBJECT_LABEL = {
 
 const SEMESTER_OF = name => name.endsWith("Sem3") ? "Sem 3" : "Sem 4";
 
+const GRADE_ABBREV = ["6","5−","5","5+","4−","4","4+","3−","3","3+","2−","2","2+","1−","1","1+"];
+
 const GRADE_NAMES = {
     0:  "0 Punkte — ungenügend (6)",
     1:  "1 Punkt — mangelhaft minus (5−)",
@@ -85,7 +87,11 @@ function onKeyDown(e) {
 function focusNext(current) {
     const inputs = Array.from(document.querySelectorAll('input[type="number"]'));
     const idx = inputs.indexOf(current);
-    if (idx >= 0 && idx < inputs.length - 1) inputs[idx + 1].focus();
+    if (idx >= 0 && idx < inputs.length - 1) {
+        inputs[idx + 1].focus();
+    } else if (idx === inputs.length - 1) {
+        current.blur(); // close mobile keyboard after last field
+    }
 }
 
 function calculate() {
@@ -94,12 +100,12 @@ function calculate() {
 
     const validation = validateGrades(inputs);
     if (!validation.ok) {
-        if (validation.zeroInputs) validation.zeroInputs.forEach(el => el.classList.add("is-zero"));
+        if (validation.zeroInputs) validation.zeroInputs.forEach(el => markInput(el, "is-zero"));
         showResult({ tone: validation.tone, message: validation.message });
         return;
     }
 
-    MANDATORY.forEach(name => document.getElementsByName(name)[0].classList.add("is-included"));
+    MANDATORY.forEach(name => markInput(document.getElementsByName(name)[0], "is-included"));
     const german = pickBetterGerman();
     const bestGK = pickBestGK();
 
@@ -137,14 +143,28 @@ function calculate() {
     });
 }
 
+function markInput(input, cls) {
+    input.classList.add(cls);
+    const label = input.parentElement.querySelector(".grade-label");
+    if (label) label.classList.add(cls);
+}
+
 function clearStates(inputs) {
-    inputs.forEach(input => input.classList.remove("is-included", "is-deficit", "is-zero"));
+    inputs.forEach(input => {
+        input.classList.remove("is-included", "is-deficit", "is-zero");
+        const label = input.parentElement.querySelector(".grade-label");
+        if (label) label.className = "grade-label";
+    });
 }
 
 function markDeficits(inputs) {
     inputs.forEach(input => {
         const v = parseInt(input.value, 10);
-        if (v >= 1 && v <= 4) input.classList.add("is-deficit");
+        if (v >= 1 && v <= 4) {
+            input.classList.add("is-deficit");
+            const label = input.parentElement.querySelector(".grade-label");
+            if (label) label.classList.add("is-deficit");
+        }
     });
 }
 
@@ -152,7 +172,7 @@ function pickBetterGerman() {
     const sem3 = document.getElementsByName("germanSem3")[0];
     const sem4 = document.getElementsByName("germanSem4")[0];
     const better = parseInt(sem4.value, 10) > parseInt(sem3.value, 10) ? sem4 : sem3;
-    better.classList.add("is-included");
+    markInput(better, "is-included");
     return { value: parseInt(better.value, 10), input: better, name: better.name };
 }
 
@@ -163,7 +183,7 @@ function pickBestGK() {
         const v = parseInt(input.value, 10);
         if (!isNaN(v) && v > max) { max = v; bestInput = input; }
     });
-    if (bestInput) bestInput.classList.add("is-included");
+    if (bestInput) markInput(bestInput, "is-included");
     return { value: max, input: bestInput, name: bestInput ? bestInput.name : null };
 }
 
@@ -258,6 +278,11 @@ function showResult({ tone, message, breakdown, hint }) {
     }
     area.innerHTML = html;
     area.style.display = "block";
+
+    // On mobile scroll result into view so it's not hidden behind keyboard
+    if (window.innerWidth <= 600) {
+        setTimeout(() => area.scrollIntoView({ behavior: "smooth", block: "nearest" }), 120);
+    }
 }
 
 function resetForm() {
@@ -268,6 +293,8 @@ function resetForm() {
     document.getElementById("gradeForm").reset();
     clearStates(document.querySelectorAll('input[type="number"]'));
     document.querySelectorAll('input[type="number"]').forEach(i => i.removeAttribute("title"));
+    document.querySelectorAll('.input-wrap').forEach(w => w.classList.remove("has-label"));
+    document.querySelectorAll('.grade-label').forEach(l => { l.textContent = ""; });
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     if (location.hash) history.replaceState(null, "", location.pathname + location.search);
 }
@@ -352,8 +379,17 @@ function showToast(msg) {
 
 function updateTooltip(input) {
     const v = parseInt(input.value, 10);
-    if (!isNaN(v) && v >= 0 && v <= 15) input.title = GRADE_NAMES[v];
-    else input.removeAttribute("title");
+    const wrap = input.parentElement;
+    const label = wrap.querySelector(".grade-label");
+    if (!isNaN(v) && v >= 0 && v <= 15) {
+        input.title = GRADE_NAMES[v];
+        if (label) label.textContent = "Note " + GRADE_ABBREV[v];
+        wrap.classList.add("has-label");
+    } else {
+        input.removeAttribute("title");
+        if (label) label.textContent = "";
+        wrap.classList.remove("has-label");
+    }
 }
 
 function updateAllTooltips() {

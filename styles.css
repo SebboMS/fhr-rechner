@@ -68,7 +68,6 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
     color: var(--text);
     background: linear-gradient(135deg, var(--bg-from) 0%, var(--bg-to) 100%);
-    background-attachment: fixed;
     min-height: 100vh;
     margin: 0;
     padding: 24px 16px;
@@ -188,6 +187,9 @@ th {
 
 th:first-child { text-align: left; padding-left: 18px; }
 
+/* "Semester " prefix hidden on small screens via .th-full */
+.th-full { }
+
 td {
     padding: 12px;
     border-bottom: 1px solid var(--border);
@@ -219,19 +221,75 @@ td:first-child {
     vertical-align: 2px;
 }
 
+/* Input + grade label as one fused card */
+.input-wrap {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+}
+
+/* Default: label hidden, input fully rounded */
+.grade-label {
+    display: none;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    padding: 4px 4px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    background: var(--surface-soft);
+    color: var(--text-muted);
+    border: 1.5px solid var(--border-strong);
+    border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Show label + flatten input bottom only when value is entered */
+.input-wrap.has-label input[type="number"] {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-bottom-color: transparent;
+}
+
+.input-wrap.has-label .grade-label {
+    display: block;
+}
+
+/* Color states — input and label share the same palette */
+.grade-label.is-included {
+    background: var(--highlight);
+    border-color: var(--highlight-border);
+    color: var(--highlight-text);
+}
+
+.grade-label.is-deficit {
+    background: var(--warning-bg);
+    border-color: var(--warning);
+    color: var(--warning-text);
+}
+
+.grade-label.is-zero {
+    background: var(--danger-bg);
+    border-color: var(--danger);
+    color: var(--danger-text);
+}
+
 input[type="number"] {
     width: 64px;
+    min-height: 44px;
     padding: 10px 6px;
     border: 1.5px solid var(--border-strong);
     border-radius: var(--radius-sm);
     background: var(--surface);
     text-align: center;
-    font-size: 16px;
+    font-size: 16px;    /* stays 16px — prevents iOS auto-zoom */
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--text);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
     -moz-appearance: textfield;
+    touch-action: manipulation;
 }
 
 input[type="number"]::-webkit-outer-spin-button,
@@ -244,6 +302,11 @@ input[type="number"]:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* When focused, extend the green border to the label strip */
+.input-wrap.has-label:has(input:focus) .grade-label {
+    border-color: var(--primary);
 }
 
 input[type="number"].is-included {
@@ -402,7 +465,10 @@ button:hover {
     transform: translateY(-1px);
 }
 
-button:active { transform: translateY(0); }
+button:active {
+    transform: scale(0.97);
+    background: var(--surface-soft);
+}
 
 button.btn-secondary {
     background: transparent;
@@ -433,23 +499,60 @@ button.btn-secondary {
 }
 
 @media (max-width: 540px) {
-    body { padding: 14px 8px; }
-    .container { padding: 22px 18px; border-radius: var(--radius-lg); }
+    body { padding: 10px 6px; }
+    .container { padding: 20px 16px; border-radius: var(--radius-lg); }
+
     .header { gap: 10px; }
     .header__icon { width: 40px; height: 40px; }
     .header h1 { font-size: 18px; }
     .header p { font-size: 12.5px; }
-    th, td { padding: 10px 6px; font-size: 13px; }
-    th:first-child, td:first-child { padding-left: 12px; }
-    th { font-size: 10.5px; padding-top: 12px; padding-bottom: 12px; }
-    input[type="number"] { width: 54px; padding: 9px 4px; font-size: 15px; }
-    .subject-badge { font-size: 9px; padding: 1px 6px; margin-left: 6px; }
-    .info { padding: 12px 14px; font-size: 13.5px; }
-    .legend { font-size: 11.5px; gap: 8px 14px; }
-    .actions { justify-content: stretch; }
-    .actions button { flex: 1; justify-content: center; }
-    .breakdown { font-size: 12.5px; }
-    .breakdown td:nth-child(2) { padding-right: 8px; }
+
+    /* Compact info boxes: collapse to single accordion-like blocks */
+    .info { padding: 10px 12px; font-size: 13px; margin: 10px 0; }
+
+    /* Table */
+    th { font-size: 11px; padding: 10px 4px; letter-spacing: 0.03em; }
+    th:first-child { padding-left: 10px; }
+    td { padding: 8px 4px; }
+    td:first-child { padding-left: 10px; font-size: 13px; }
+
+    /* Hide "Semester " prefix — only show the number */
+    .th-full { display: none; }
+
+    /* Inputs: keep width tight but maintain 44px tap height */
+    input[type="number"] {
+        width: 52px;
+        min-height: 44px;
+        padding: 8px 4px;
+        font-size: 16px; /* never below 16px — prevents iOS zoom */
+        border-radius: 6px;
+    }
+
+    .grade-label { font-size: 10px; }
+    .subject-badge { font-size: 9px; padding: 1px 6px; margin-left: 5px; }
+
+    .legend { font-size: 11.5px; gap: 6px 12px; margin-top: 10px; }
+
+    /* Buttons: full width, equal split */
+    .actions { gap: 6px; }
+    .actions button { flex: 1; justify-content: center; padding: 12px 8px; }
+
+    /* Result */
+    .result { padding: 14px 14px; font-size: 14px; }
+
+    /* Breakdown: hide the formula column on small screens */
+    .breakdown { font-size: 12px; }
+    .breakdown td:nth-child(2) { display: none; }
+    .breakdown tfoot td:nth-child(2) { display: none; }
+}
+
+/* Very small phones (320px) */
+@media (max-width: 360px) {
+    .container { padding: 16px 10px; }
+    input[type="number"] { width: 46px; }
+    td:first-child { font-size: 12px; }
+    .actions button { padding: 12px 4px; font-size: 12px; gap: 5px; }
+    .btn-label { display: none; }  /* icon-only on tiny screens */
 }
 
 @media print {
