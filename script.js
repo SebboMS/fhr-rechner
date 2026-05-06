@@ -1,198 +1,361 @@
-window.onload = function() {
-    let inputs = document.querySelectorAll('input[type="number"]');
+const ICONS = {
+    success: '<svg class="result__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="m9 11 3 3L22 4"/></svg>',
+    warning: '<svg class="result__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+    error:   '<svg class="result__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>'
+};
+
+const MANDATORY = ["englishSem3", "englishSem4", "mathSem3", "mathSem4", "biologySem3", "biologySem4"];
+
+const FIELD_ORDER = [
+    "biologySem3", "biologySem4",
+    "germanSem3", "germanSem4",
+    "mathSem3", "mathSem4",
+    "englishSem3", "englishSem4",
+    "artSem3", "artSem4",
+    "historySem3", "historySem4"
+];
+
+const SUBJECT_LABEL = {
+    biologySem3: "Biologie", biologySem4: "Biologie",
+    germanSem3: "Deutsch", germanSem4: "Deutsch",
+    mathSem3: "Mathematik", mathSem4: "Mathematik",
+    englishSem3: "Englisch", englishSem4: "Englisch",
+    artSem3: "Kunst", artSem4: "Kunst",
+    historySem3: "Geschichte", historySem4: "Geschichte"
+};
+
+const SEMESTER_OF = name => name.endsWith("Sem3") ? "Sem 3" : "Sem 4";
+
+const GRADE_NAMES = {
+    0:  "0 Punkte — ungenügend (6)",
+    1:  "1 Punkt — mangelhaft minus (5−)",
+    2:  "2 Punkte — mangelhaft (5)",
+    3:  "3 Punkte — mangelhaft plus (5+)",
+    4:  "4 Punkte — ausreichend minus (4−)",
+    5:  "5 Punkte — ausreichend (4)",
+    6:  "6 Punkte — ausreichend plus (4+)",
+    7:  "7 Punkte — befriedigend minus (3−)",
+    8:  "8 Punkte — befriedigend (3)",
+    9:  "9 Punkte — befriedigend plus (3+)",
+    10: "10 Punkte — gut minus (2−)",
+    11: "11 Punkte — gut (2)",
+    12: "12 Punkte — gut plus (2+)",
+    13: "13 Punkte — sehr gut minus (1−)",
+    14: "14 Punkte — sehr gut (1)",
+    15: "15 Punkte — sehr gut plus (1+)"
+};
+
+const STORAGE_KEY = "fhr-rechner-grades-v1";
+
+document.addEventListener("DOMContentLoaded", () => {
+    const inputs = document.querySelectorAll('input[type="number"]');
     inputs.forEach(input => {
-        input.addEventListener("input", function() {
-            calculate();
-        });
+        input.addEventListener("input", onInput);
+        input.addEventListener("keydown", onKeyDown);
     });
+    document.getElementById("resetButton").addEventListener("click", resetForm);
+    document.getElementById("printButton").addEventListener("click", () => window.print());
+    document.getElementById("shareButton").addEventListener("click", shareLink);
+
+    const fromHash = decodeHashGrades();
+    if (fromHash) {
+        applyState(fromHash);
+        history.replaceState(null, "", location.pathname + location.search);
+    } else {
+        loadStoredState();
+    }
+    updateAllTooltips();
+    if (anyInputFilled()) calculate();
+});
+
+function onInput(e) {
+    updateTooltip(e.target);
+    calculate();
+    saveState();
+    if (e.target.value.length >= 2) focusNext(e.target);
+}
+
+function onKeyDown(e) {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        focusNext(e.target);
+    }
+}
+
+function focusNext(current) {
+    const inputs = Array.from(document.querySelectorAll('input[type="number"]'));
+    const idx = inputs.indexOf(current);
+    if (idx >= 0 && idx < inputs.length - 1) inputs[idx + 1].focus();
 }
 
 function calculate() {
-    document.getElementById("resultArea").style.display = 'block';
-    if (validateGrades()) {
-        highlightMandatoryGrades();
-        const LKGrades = collectLKGrades();
-        const GKGrades = collectGKGrades();
-        const total = calculateTotalPoints(LKGrades, GKGrades);
-        displayResults(total, GKGrades, LKGrades);
-        highlightDeficits();
+    const inputs = Array.from(document.querySelectorAll('input[type="number"]'));
+    clearStates(inputs);
+
+    const validation = validateGrades(inputs);
+    if (!validation.ok) {
+        if (validation.zeroInputs) validation.zeroInputs.forEach(el => el.classList.add("is-zero"));
+        showResult({ tone: validation.tone, message: validation.message });
+        return;
     }
-}
 
-function resetForm() {
-    document.getElementById("resultArea").style.display = 'none';    
-    const form = document.getElementById("gradeForm");
-    form.reset();
-    setBackgroundColor(document.querySelectorAll('input[type="number"]'), 'white');
-}
+    MANDATORY.forEach(name => document.getElementsByName(name)[0].classList.add("is-included"));
+    const german = pickBetterGerman();
+    const bestGK = pickBestGK();
 
-function highlightMandatoryGrades(){
-    setBackgroundColor(document.querySelectorAll('input[type="number"]'), 'white');
-    setBackgroundColor([
-        document.getElementsByName("englishSem3")[0],
-        document.getElementsByName("englishSem4")[0],
-        document.getElementsByName("mathSem3")[0],
-        document.getElementsByName("mathSem4")[0],
-        document.getElementsByName("biologySem3")[0],
-        document.getElementsByName("biologySem4")[0]
-    ], "yellow");
-}
+    const LKGrades = [german.value, byName("biologySem3"), byName("biologySem4")];
+    const GKGrades = [bestGK.value, byName("mathSem3"), byName("mathSem4"), byName("englishSem3"), byName("englishSem4")];
 
-function collectLKGrades() {
-    return [
-        getBetterGermanGrade(), 
-        parseInt(document.getElementsByName("biologySem3")[0].value),
-        parseInt(document.getElementsByName("biologySem4")[0].value)
-    ];
-}
+    markDeficits(inputs);
 
-function collectGKGrades() {
-    return [
-        getBestGKGrade(),
-        parseInt(document.getElementsByName("mathSem3")[0].value),
-        parseInt(document.getElementsByName("mathSem4")[0].value),
-        parseInt(document.getElementsByName("englishSem3")[0].value),
-        parseInt(document.getElementsByName("englishSem4")[0].value)
-    ];
-}
+    if (!withinDeficitLimits(GKGrades, LKGrades)) {
+        showResult({ tone: "error", message: buildDeficitMessage(GKGrades, LKGrades) });
+        return;
+    }
 
-function calculateTotalPoints(LKGrades, GKGrades) {
-    const LKTotal = LKGrades.reduce((total, current) => total + current * 3, 0);
-    const GKTotal = GKGrades.reduce((total, current) => total + current * 2, 0);
-    return LKTotal + GKTotal;
-}
+    const breakdown = buildBreakdown(german, bestGK);
+    const total = breakdown.total;
 
-function displayResults(total, GKGrades, LKGrades) {
-    if (!checkDeficits(GKGrades, LKGrades)) {
-        updateResultArea('Es liegen zu viele <span class="highlight">Defizite</span> vor.');
-    } else if (total < 95) {
-        updateResultArea('Die <span class="highlight">Gesamtpunktzahl</span> ist mit <span class="highlight"> ' + total + ' Punkten</span> zu niedrig.');
-    } else {
-        var schnitt = (323 - total) / 57;
-        if (schnitt < 1) { schnitt = 1; }
-        updateResultArea(`Die Gesamtpunktzahl beträgt <span class="highlight">${total}</span> Punkte. Der errechnete FHR-Schnitt liegt bei <span class="highlight">${schnitt.toFixed(1)}</span>.`);
-    }    
-}
+    if (total < 95) {
+        const need = 95 - total;
+        const verb = need === 1 ? "fehlt" : "fehlen";
+        showResult({
+            tone: "warning",
+            message: `Aktuell <span class="highlight">${total} Punkte</span> &mdash; mindestens <span class="highlight">95</span> sind n&ouml;tig (es ${verb} noch <span class="highlight">${need}</span>).`,
+            breakdown
+        });
+        return;
+    }
 
-function setBackgroundColor(elements, color) {
-    elements.forEach(element => {
-        element.style.backgroundColor = color;
+    const schnitt = Math.max(1, (323 - total) / 57);
+    const hint = buildTargetHint(total);
+    showResult({
+        tone: "success",
+        message: `Gesamtpunktzahl: <span class="highlight">${total}</span> &middot; FHR-Schnitt: <span class="highlight">${schnitt.toFixed(1).replace(".", ",")}</span>`,
+        breakdown,
+        hint
     });
 }
 
-function updateResultArea(html) {
-    document.getElementById("resultArea").innerHTML = html;
+function clearStates(inputs) {
+    inputs.forEach(input => input.classList.remove("is-included", "is-deficit", "is-zero"));
 }
 
-function getBetterGermanGrade() {
-    var sem3Grade = parseInt(document.getElementsByName("germanSem3")[0].value);
-    var sem4Grade = parseInt(document.getElementsByName("germanSem4")[0].value);
-
-    // Ermittle die bessere Note
-    var betterGrade = Math.max(sem3Grade, sem4Grade);
-
-    // Markiere das entsprechende Textfeld
-    if (betterGrade === sem3Grade) {
-        document.getElementsByName("germanSem3")[0].style.backgroundColor = "yellow";
-        document.getElementsByName("germanSem4")[0].style.backgroundColor = ""; // Entferne die Markierung vom anderen Textfeld
-    } else {
-        document.getElementsByName("germanSem4")[0].style.backgroundColor = "yellow";
-        document.getElementsByName("germanSem3")[0].style.backgroundColor = ""; // Entferne die Markierung vom anderen Textfeld
-    }
-
-    return betterGrade;        
-}
-
-function getBestGKGrade(){
-    var GKs = document.querySelectorAll(".GK");
-    var max = -Infinity;
-    var bestInput = null;
-    
-    GKs.forEach(function(input) {
-        var value = parseInt(input.value);
-        if (!isNaN(value) && value > max) {
-            max = value;
-            bestInput = input;
-        }
-    })
-    bestInput.style.backgroundColor="yellow";
-    return max;
-}
- 
-function checkDeficits(GK, LK) {
-    var LKdef = 0;
-    var GKdef = 0;
-
-    for (var i = 0; i < LK.length; i++) {
-        if (LK[i] <= 4) {
-            LKdef++;
-        }
-    }
-    for (var j = 0; j < GK.length; j++) {
-        if (GK[j] <= 4) {
-            GKdef++;
-        }
-    }
-
-    // Überprüfe, ob die Bedingungen erfüllt sind
-    var isEligible = (LKdef <= 1) && (GKdef <= 2);
-
-    // Gib das Ergebnis aus und gebe es zurück
-    // alert("Defizite LK: " + LKdef + " / Defizite GK: " + GKdef);
-    return isEligible;
-}
-
-function checkPoints(GK, LK) {
-    var LKsum = 0;
-
-    for (var i = 0; i < LK.length; i++) {
-        LKsum += LK[i];
-    }
-    if (LKsum >= 15) { return true; } else { return false; }
-}
-
-function validateGrades() {
-    var inputs = document.querySelectorAll('input[type="number"]');
-    var hasZero = false;
-
-    for (var i = 0; i < inputs.length; i++) {
-        inputs[i].style.backgroundColor = ""; 
-        var value = parseInt(inputs[i].value);
-
-        // Überprüfen, ob ein Wert eingegeben wurde
-        if (isNaN(value)) {
-            updateResultArea('Bitte geben Sie für alle Fächer Noten zwischen <span class="highlight">0</span> und <span class="highlight">15</span> ein.');
-            return false;
-        }
-
-        // Überprüfen, ob der Wert zwischen 0 und 15 liegt
-        if (value < 0 || value > 15) {
-            document.getElementById("resultArea").innerHTML = 'Die Noten müssen zwischen <span class="highlight">0</span> und <span class="highlight">15</span> liegen.';
-            return false;
-        }
-
-        // Überprüfen, ob ein Wert = 0 ist
-        if (value == 0) {
-            inputs[i].style.backgroundColor = "#ffcccc";
-            hasZero = true;
-        }
-    }
-
-    if (hasZero) {
-        updateResultArea('Mindestens ein Kurs wurde mit <span class="highlight">0 Punkten</span> abgeschlossen.');
-        return false;
-    }
-    return true; // Rückgabe, dass alle Werte gültig sind
-}
-
-function highlightDeficits() {
-    var inputs = document.querySelectorAll('input[type="number"]');
-
+function markDeficits(inputs) {
     inputs.forEach(input => {
-        var value = parseInt(input.value);
-        // Falls die Note zwischen 1 und 4 liegt, wird das Eingabefeld orange eingefärbt
-        if (value >= 1 && value <= 4) {
-            input.style.backgroundColor = "#ffcc80"; // helles Orange
+        const v = parseInt(input.value, 10);
+        if (v >= 1 && v <= 4) input.classList.add("is-deficit");
+    });
+}
+
+function pickBetterGerman() {
+    const sem3 = document.getElementsByName("germanSem3")[0];
+    const sem4 = document.getElementsByName("germanSem4")[0];
+    const better = parseInt(sem4.value, 10) > parseInt(sem3.value, 10) ? sem4 : sem3;
+    better.classList.add("is-included");
+    return { value: parseInt(better.value, 10), input: better, name: better.name };
+}
+
+function pickBestGK() {
+    let bestInput = null;
+    let max = -Infinity;
+    document.querySelectorAll(".GK").forEach(input => {
+        const v = parseInt(input.value, 10);
+        if (!isNaN(v) && v > max) { max = v; bestInput = input; }
+    });
+    if (bestInput) bestInput.classList.add("is-included");
+    return { value: max, input: bestInput, name: bestInput ? bestInput.name : null };
+}
+
+function byName(name) {
+    return parseInt(document.getElementsByName(name)[0].value, 10);
+}
+
+function validateGrades(inputs) {
+    const zeroInputs = [];
+    for (const input of inputs) {
+        const value = parseInt(input.value, 10);
+        if (isNaN(value)) {
+            return { ok: false, tone: "neutral", message: 'Bitte gib f&uuml;r alle F&auml;cher Noten zwischen <span class="highlight">0</span> und <span class="highlight">15</span> ein.' };
         }
-    })
+        if (value < 0 || value > 15) {
+            return { ok: false, tone: "error", message: 'Die Noten m&uuml;ssen zwischen <span class="highlight">0</span> und <span class="highlight">15</span> liegen.' };
+        }
+        if (value === 0) zeroInputs.push(input);
+    }
+    if (zeroInputs.length > 0) {
+        return { ok: false, tone: "error", message: 'Mindestens ein Kurs wurde mit <span class="highlight">0 Punkten</span> abgeschlossen.', zeroInputs };
+    }
+    return { ok: true };
+}
+
+function withinDeficitLimits(GK, LK) {
+    const LKdef = LK.filter(g => g <= 4).length;
+    const GKdef = GK.filter(g => g <= 4).length;
+    return LKdef <= 1 && GKdef <= 2;
+}
+
+function buildDeficitMessage(GK, LK) {
+    const LKdef = LK.filter(g => g <= 4).length;
+    const GKdef = GK.filter(g => g <= 4).length;
+    const parts = [];
+    if (LKdef > 1) parts.push(`<span class="highlight">${LKdef} LK-Defizite</span> (max. 1 erlaubt)`);
+    if (GKdef > 2) parts.push(`<span class="highlight">${GKdef} GK-Defizite</span> (max. 2 erlaubt)`);
+    return `Zu viele Defizite: ${parts.join(" &middot; ")}.`;
+}
+
+function buildBreakdown(german, bestGK) {
+    const bio3 = byName("biologySem3");
+    const bio4 = byName("biologySem4");
+    const math3 = byName("mathSem3");
+    const math4 = byName("mathSem4");
+    const eng3 = byName("englishSem3");
+    const eng4 = byName("englishSem4");
+
+    const rows = [
+        { label: "Biologie (LK)",   formula: `${bio3} + ${bio4} = ${bio3 + bio4} &times; 3`, points: (bio3 + bio4) * 3 },
+        { label: `Deutsch (LK, ${SEMESTER_OF(german.name)})`, formula: `${german.value} &times; 3`, points: german.value * 3 },
+        { label: "Mathematik (GK)", formula: `${math3} + ${math4} = ${math3 + math4} &times; 2`, points: (math3 + math4) * 2 },
+        { label: "Englisch (GK)",   formula: `${eng3} + ${eng4} = ${eng3 + eng4} &times; 2`, points: (eng3 + eng4) * 2 },
+        { label: `${SUBJECT_LABEL[bestGK.name]} (GK, ${SEMESTER_OF(bestGK.name)})`, formula: `${bestGK.value} &times; 2`, points: bestGK.value * 2 }
+    ];
+    const total = rows.reduce((s, r) => s + r.points, 0);
+    return { rows, total };
+}
+
+function buildTargetHint(total) {
+    const currentSchnitt = parseFloat(((323 - total) / 57).toFixed(1));
+    if (currentSchnitt <= 1.0) return null;
+    const target = parseFloat((currentSchnitt - 0.1).toFixed(1));
+    if (target < 1.0) return null;
+    for (let t = total + 1; t <= 285; t++) {
+        const s = parseFloat(((323 - t) / 57).toFixed(1));
+        if (s <= target) {
+            const diff = t - total;
+            const noun = diff === 1 ? "Punkt" : "Punkten";
+            return `Mit <span class="highlight">${diff}</span> ${noun} mehr erreichst du Schnitt <span class="highlight">${target.toFixed(1).replace(".", ",")}</span>.`;
+        }
+    }
+    return null;
+}
+
+function showResult({ tone, message, breakdown, hint }) {
+    const area = document.getElementById("resultArea");
+    area.classList.remove("result--success", "result--warning", "result--error");
+    if (tone === "success") area.classList.add("result--success");
+    else if (tone === "warning") area.classList.add("result--warning");
+    else if (tone === "error") area.classList.add("result--error");
+
+    let html = (ICONS[tone] || "") + message;
+    if (breakdown) {
+        let rowsHtml = breakdown.rows.map(r =>
+            `<tr><td>${r.label}</td><td>${r.formula}</td><td>${r.points}</td></tr>`
+        ).join("");
+        html += `<table class="breakdown"><tbody>${rowsHtml}</tbody><tfoot><tr><td>Gesamt</td><td></td><td>${breakdown.total}</td></tr></tfoot></table>`;
+    }
+    if (hint) {
+        html += `<div class="result__hint">${hint}</div>`;
+    }
+    area.innerHTML = html;
+    area.style.display = "block";
+}
+
+function resetForm() {
+    const area = document.getElementById("resultArea");
+    area.style.display = "none";
+    area.classList.remove("result--success", "result--warning", "result--error");
+    area.innerHTML = "";
+    document.getElementById("gradeForm").reset();
+    clearStates(document.querySelectorAll('input[type="number"]'));
+    document.querySelectorAll('input[type="number"]').forEach(i => i.removeAttribute("title"));
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+}
+
+function saveState() {
+    const state = {};
+    document.querySelectorAll('input[type="number"]').forEach(i => {
+        if (i.value !== "") state[i.name] = i.value;
+    });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
+
+function loadStoredState() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        applyState(JSON.parse(raw));
+    } catch {}
+}
+
+function applyState(state) {
+    Object.entries(state).forEach(([k, v]) => {
+        const el = document.getElementsByName(k)[0];
+        if (el) el.value = v;
+    });
+}
+
+function anyInputFilled() {
+    return Array.from(document.querySelectorAll('input[type="number"]')).some(i => i.value !== "");
+}
+
+function encodeHashGrades() {
+    return FIELD_ORDER.map(name => {
+        const v = document.getElementsByName(name)[0].value;
+        if (v === "") return "x";
+        const n = parseInt(v, 10);
+        if (isNaN(n) || n < 0 || n > 15) return "x";
+        return n.toString(16);
+    }).join("");
+}
+
+function decodeHashGrades() {
+    const m = location.hash.match(/g=([0-9a-fx]{12})/i);
+    if (!m) return null;
+    const code = m[1].toLowerCase();
+    const result = {};
+    for (let i = 0; i < 12; i++) {
+        const c = code[i];
+        if (c === "x") continue;
+        const n = parseInt(c, 16);
+        if (!isNaN(n) && n >= 0 && n <= 15) result[FIELD_ORDER[i]] = String(n);
+    }
+    return Object.keys(result).length ? result : null;
+}
+
+function shareLink() {
+    const url = `${location.origin}${location.pathname}#g=${encodeHashGrades()}`;
+    const fallback = () => {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); showToast("Link kopiert"); } catch { showToast("Konnte Link nicht kopieren"); }
+        document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => showToast("Link kopiert"), fallback);
+    } else {
+        fallback();
+    }
+}
+
+function showToast(msg) {
+    const toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.classList.add("toast--visible");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove("toast--visible"), 2200);
+}
+
+function updateTooltip(input) {
+    const v = parseInt(input.value, 10);
+    if (!isNaN(v) && v >= 0 && v <= 15) input.title = GRADE_NAMES[v];
+    else input.removeAttribute("title");
+}
+
+function updateAllTooltips() {
+    document.querySelectorAll('input[type="number"]').forEach(updateTooltip);
 }

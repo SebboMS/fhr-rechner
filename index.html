@@ -3,62 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>Fachhochschulreife-Rechner</title>
-    <link rel="stylesheet" type="text/css" href="styles.css">
-    <script src="script.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
 </head>
-
 <body>
-    <div class="container">
-        <h3>Fachhochschulreife-Rechner</h3>
-        <div class="info" id="infoArea">Gib in der Tabelle deine (erwarteten) Noten für die einzelnen Fächer in den Semestern 3 und 4 ein. Die <span class = "highlight">Notenwerte</span> müssen zwischen 0 (= ungenügend) und 15 (= sehr gut plus) liegen.</div>
-        <div class="info"><span class="highlight">Wichtig:</span> Die Ergebnisse des FHR-Rechners sind <span class="highlight">nicht verbindlich</span>. Bitte wende dich im Zweifel an Ihre Semesterleitung oder an den <a href="mailto:aufdemkamps@wbk.ms.de">Oberstufenkoordinator</a>.</div>
-        <form id="gradeForm">
+    <main class="container">
+        <header class="header">
+            <div class="header__icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                </svg>
+            </div>
+            <div>
+                <h1>Fachhochschulreife-Rechner</h1>
+                <p>Schulischer Teil &middot; Semester 3 &amp; 4</p>
+            </div>
+        </header>
+
+        <div class="info">
+            Gib deine (erwarteten) Noten f&uuml;r Semester 3 und 4 ein. Die <span class="highlight">Notenwerte</span> liegen zwischen 0 (= ungen&uuml;gend) und 15 (= sehr gut plus). Halte die Maus &uuml;ber ein Feld f&uuml;r die Notenstufe.
+        </div>
+
+        <div class="info info--important">
+            <span class="highlight">Wichtig:</span> Die Ergebnisse sind <span class="highlight">nicht verbindlich</span>. Wende dich im Zweifel an deine Semesterleitung oder den <a href="mailto:aufdemkamps@wbk.ms.de">Oberstufenkoordinator</a>.
+        </div>
+
+        <form id="gradeForm" autocomplete="off">
             <div class="table-wrapper">
                 <table>
-                    <tr>
-                        <th>Fach</th>
-                        <th>Semester 3</th>
-                        <th>Semester 4</th>
-                    </tr>
-                    <tr>
-                        <td><strong>Biologie (LK)</strong></td>
-                        <td><input type="number" name="biologySem3" min="0" max="15"></td>
-                        <td><input type="number" name="biologySem4" min="0" max="15"></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Deutsch (LK)</strong></td>
-                        <td><input type="number" name="germanSem3" min="0" max="15"></td>
-                        <td><input type="number" name="germanSem4" min="0" max="15"></td>
-                    </tr>
-                    <tr>
-                        <td>Mathematik</td>
-                        <td><input type="number" name="mathSem3" min="0" max="15"></td>
-                        <td><input type="number" name="mathSem4" min="0" max="15"></td>
-                    </tr>
-                    <tr>
-                        <td>Englisch</td>
-                        <td><input type="number" name="englishSem3" min="0" max="15"></td>
-                        <td><input type="number" name="englishSem4" min="0" max="15"></td>
-                    </tr>
-                    <tr>
-                        <td>Kunst</td>
-                        <td><input type="number" name="artSem3" min="0" max="15" class="GK"></td>
-                        <td><input type="number" name="artSem4" min="0" max="15" class="GK"></td>
-                    </tr>
-                    <tr>
-                        <td>Geschichte</td>
-                        <td><input type="number" name="historySem3" min="0" max="15" class="GK"></td>
-                        <td><input type="number" name="historySem4" min="0" max="15" class="GK"></td>
-                    </tr>
+                    <thead>
+                        <tr>
+                            <th>Fach</th>
+                            <th>Semester 3</th>
+                            <th>Semester 4</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Biologie</strong><span class="subject-badge">LK</span></td>
+                            <td><input type="number" name="biologySem3" min="0" max="15" inputmode="numeric"></td>
+                            <td><input type="number" name="biologySem4" min="0" max="15" inputmode="numeric"></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Deutsch</strong><span class="subject-badge">LK</span></td>
+                            <td><input type="number" name="germanSem3" min="0" max="15" inputmode="numeric"></td>
+                            <td><input type="number" name="germanSem4" min="0" max="15" inputmode="numeric"></td>
+                        </tr>
+                        <tr>
+                            <td>Mathematik</td>
+                            <td><input type="number" name="mathSem3" min="0" max="15" inputmode="numeric"></td>
+                            <td><input type="number" name="mathSem4" min="0" max="15" inputmode="numeric"></td>
+                        </tr>
+                        <tr>
+                            <td>Englisch</td>
+                            <td><input type="number" name="englishSem3" min="0" max="15" inputmode="numeric"></td>
+                            <td><input type="number" name="englishSem4" min="0" max="15" inputmode="numeric"></td>
+                        </tr>
+                        <tr>
+                            <td>Kunst</td>
+                            <td><input type="number" name="artSem3" min="0" max="15" inputmode="numeric" class="GK"></td>
+                            <td><input type="number" name="artSem4" min="0" max="15" inputmode="numeric" class="GK"></td>
+                        </tr>
+                        <tr>
+                            <td>Geschichte</td>
+                            <td><input type="number" name="historySem3" min="0" max="15" inputmode="numeric" class="GK"></td>
+                            <td><input type="number" name="historySem4" min="0" max="15" inputmode="numeric" class="GK"></td>
+                        </tr>
+                    </tbody>
                 </table>
             </div>
+
+            <div class="legend">
+                <span class="legend__item"><span class="legend__swatch legend__swatch--included"></span>fließt in die Wertung ein</span>
+                <span class="legend__item"><span class="legend__swatch legend__swatch--deficit"></span>Defizit (1&ndash;4 Punkte)</span>
+                <span class="legend__item"><span class="legend__swatch legend__swatch--zero"></span>0 Punkte</span>
+            </div>
         </form>
-        <div class="result" id="resultArea"><i>Hier werden später die <span class='highlight'>Ergebnisse</span> angezeigt.</i></div>
-        <div>
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-            <button type="button" onclick="resetForm()"><i class="fas fa-undo"></i>Zurücksetzen</button>    
+
+        <div class="result" id="resultArea" aria-live="polite" aria-atomic="true"></div>
+
+        <div class="actions">
+            <button type="button" id="shareButton" class="btn-secondary" title="Link zu diesen Noten kopieren">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                Teilen
+            </button>
+            <button type="button" id="printButton" class="btn-secondary" title="Druckansicht öffnen">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9"/>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                    <rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                Drucken
+            </button>
+            <button type="button" id="resetButton" title="Alle Felder leeren">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+                Zurücksetzen
+            </button>
         </div>
-    </div>
+
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
 </body>
 </html>
