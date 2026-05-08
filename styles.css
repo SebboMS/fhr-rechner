@@ -555,6 +555,15 @@ button.btn-secondary {
     .btn-label { display: none; }  /* icon-only on tiny screens */
 }
 
+.version {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    opacity: 0.5;
+    margin: 12px 0 0;
+    letter-spacing: 0.04em;
+}
+
 @media print {
     body {
         background: white;
@@ -612,4 +621,5 @@ button.btn-secondary {
     .result__icon { display: none; }
     .breakdown td { color: black; }
     a { color: black; border-bottom: none; }
+    .version { display: none; }
 }
