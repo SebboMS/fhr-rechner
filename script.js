@@ -119,6 +119,16 @@ function calculate() {
         return;
     }
 
+    const LKSum = LKGrades.reduce((a, b) => a + b, 0);
+    if (LKSum < 15) {
+        const avg = (LKSum / 3).toFixed(1).replace(".", ",");
+        showResult({
+            tone: "error",
+            message: `LK-Schnitt zu niedrig: aktuell <span class="highlight">${avg}</span> &ndash; mindestens <span class="highlight">5,0</span> Punkte Durchschnitt erforderlich.`
+        });
+        return;
+    }
+
     const breakdown = buildBreakdown(german, bestGK);
     const total = breakdown.total;
 
