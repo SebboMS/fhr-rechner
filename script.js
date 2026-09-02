@@ -6,6 +6,12 @@ const ICONS = {
 
 const MANDATORY = ["englishSem3", "englishSem4", "mathSem3", "mathSem4", "biologySem3", "biologySem4"];
 
+// Durchschnittsnote nach APO-WbK Anlage 9: N = 5 2/3 - P/57 (= (323 - P)/57), auf eine
+// Nachkommastelle ABGESCHNITTEN - § 61 Abs. 5: "es wird nicht gerundet"; bester Wert 1,0.
+function fhrNote(punkte) {
+    return Math.max(1.0, Math.floor((323 - punkte) / 57 * 10 + 1e-9) / 10);
+}
+
 const FIELD_ORDER = [
     "biologySem3", "biologySem4",
     "germanSem3", "germanSem4",
@@ -143,7 +149,7 @@ function calculate() {
         return;
     }
 
-    const schnitt = Math.max(1, (323 - total) / 57);
+    const schnitt = fhrNote(total);
     const hint = buildTargetHint(total);
     showResult({
         tone: "success",
@@ -254,12 +260,12 @@ function buildBreakdown(german, bestGK) {
 }
 
 function buildTargetHint(total) {
-    const currentSchnitt = parseFloat(((323 - total) / 57).toFixed(1));
+    const currentSchnitt = fhrNote(total);
     if (currentSchnitt <= 1.0) return null;
     const target = parseFloat((currentSchnitt - 0.1).toFixed(1));
     if (target < 1.0) return null;
     for (let t = total + 1; t <= 285; t++) {
-        const s = parseFloat(((323 - t) / 57).toFixed(1));
+        const s = fhrNote(t);
         if (s <= target) {
             const diff = t - total;
             const noun = diff === 1 ? "Punkt" : "Punkten";
